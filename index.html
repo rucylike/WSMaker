@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PPT 활동지 슬라이드 메이커</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@600;800&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<style>
+/* Layout: a teacher's desk — controls on a left rail, the A4 worksheet laid on the desk to the right. */
+:root{
+  --desk:#e8ecef; --rail:#f7f8f9; --ink:#1d2433; --muted:#5d6675; --line:#d3d9df;
+  --accent:#1e6b5c; --accent-ink:#ffffff; --accent-soft:#dcece7; --hi:#f4dc6e; --warn:#9a4a12; --warn-soft:#fbeedd;
+  --f-ui:"IBM Plex Sans KR","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-display:"Noto Serif KR","Nanum Myeongjo",serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --desk:#14181d; --rail:#1b2027; --ink:#e6e9ee; --muted:#9aa3af; --line:#2e3640;
+  --accent:#5fbfa8; --accent-ink:#0f1a17; --accent-soft:#1f3631; --hi:#c9b04a; --warn:#f0b07a; --warn-soft:#3a2a1c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --desk:#14181d; --rail:#1b2027; --ink:#e6e9ee; --muted:#9aa3af; --line:#2e3640;
+  --accent:#5fbfa8; --accent-ink:#0f1a17; --accent-soft:#1f3631; --hi:#c9b04a; --warn:#f0b07a; --warn-soft:#3a2a1c; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+[hidden]{display:none!important}
+body{background:var(--desk);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.55}
+.topbar{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding-block:18px 14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);background:var(--rail)}
+.topbar h1{margin:0;font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:-.01em}
+.topbar p{margin:0;color:var(--muted);font-size:13px}
+.app{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+@media (min-width:980px){.app{grid-template-columns:380px minmax(0,1fr);min-height:calc(100vh - 70px)}}
+.rail{background:var(--rail);border-right:1px solid var(--line);padding-block:18px 28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px;display:flex;flex-direction:column;gap:22px;min-width:0}
+.step{display:flex;flex-direction:column;gap:10px}
+.step h2{margin:0;font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--muted);display:flex;align-items:center;gap:8px}
+.step h2 b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--ink);color:var(--rail);font-size:11px}
+.drop{border:1.5px dashed var(--line);border-radius:10px;padding:18px 14px;text-align:center;cursor:pointer;background:var(--desk);transition:border-color .15s,background .15s}
+.drop:hover,.drop.over,.drop:focus-within{border-color:var(--accent);background:var(--accent-soft)}
+.drop strong{display:block;font-size:15px}
+.drop span{color:var(--muted);font-size:12.5px}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);font:inherit;font-size:12.5px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.status{font-size:12.5px;color:var(--muted)}
+.status.err{color:var(--warn)}
+.slides{list-style:none;margin:0;padding:0;max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--desk)}
+.slides li{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-bottom:1px solid var(--line)}
+.slides li:last-child{border-bottom:0}
+.slides label{display:flex;gap:10px;align-items:flex-start;cursor:pointer;min-width:0;flex:1}
+.slides .n{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;min-width:22px;padding-top:1px}
+.slides .t{font-weight:600;font-size:13px;display:block;overflow-wrap:anywhere}
+.slides .b{display:block;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.slides input{margin-top:3px;accent-color:var(--accent)}
+.paste{display:flex;flex-direction:column;gap:8px}
+textarea,input[type=text],select,input[type=number]{font:inherit;font-size:13.5px;color:var(--ink);background:var(--desk);border:1px solid var(--line);border-radius:7px;padding:7px 9px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:90px}
+textarea:focus,input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field>span{font-size:12px;color:var(--muted)}
+.types{display:flex;flex-direction:column;gap:6px}
+.types .row{display:grid;grid-template-columns:1fr 64px;gap:8px;align-items:center}
+.types .row label{display:flex;gap:8px;align-items:center;font-size:13.5px}
+.types input[type=checkbox],.check input{accent-color:var(--accent)}
+.types input[type=number]{padding:5px 6px;text-align:center;font-variant-numeric:tabular-nums}
+.check{display:flex;gap:8px;align-items:center;font-size:13.5px}
+.btn{font:inherit;font-weight:600;font-size:14px;border-radius:8px;border:1px solid transparent;padding:10px 14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.ghost{background:transparent;border-color:var(--line);color:var(--ink)}
+.btn.ghost:hover{border-color:var(--accent)}
+.btn[disabled]{opacity:.55;cursor:default}
+.actions{display:flex;flex-direction:column;gap:8px}
+.progress{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent);animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+.stage{padding-block:18px 40px;padding-left:16px;padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px;min-width:0}
+@media (max-width:979px){.stage{padding-left:max(16px,env(safe-area-inset-left,0px))}}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:820px;width:100%;margin-inline:auto}
+.toolbar .sp{flex:1}
+.pill{font-size:12px;padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--ink);border:1px solid var(--line)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.note{max-width:820px;margin-inline:auto;width:100%;font-size:12.5px;color:var(--muted)}
+.deck{display:flex;flex-direction:column;gap:20px;max-width:880px;width:100%;margin-inline:auto}
+.sl{margin:0;display:flex;flex-direction:column;gap:6px}
+.sl figcaption{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.slide{position:relative;width:100%;aspect-ratio:16/9;max-width:100%;background:#fff;container-type:inline-size;box-shadow:0 1px 2px rgba(20,30,40,.10),0 8px 24px rgba(20,30,40,.10);border-radius:3px;overflow:hidden;font-family:"Noto Sans KR","Malgun Gothic",sans-serif;word-break:keep-all;overflow-wrap:anywhere}
+.el{position:absolute;display:flex;flex-direction:column;font-size:calc(var(--s,18) * 100cqw / 960);line-height:1.3;padding:0 .15em}
+.el.box{background:#f6f9fa;border:1px solid #9bb0bc;border-radius:.35em;padding:.25em .5em}
+.el .num{font-weight:700}
+.el [contenteditable]{border-radius:3px;outline:none}
+.el [contenteditable]:hover{background:#fff7d6}
+.el [contenteditable]:focus{background:#fff3c2;box-shadow:0 0 0 2px #f4dc6e}
+.del{position:absolute;right:-2px;top:-4px;width:22px;height:22px;border-radius:50%;border:1px solid #d3d9df;background:#fff;color:#7a8390;cursor:pointer;font-size:13px;line-height:1;opacity:0;transition:opacity .15s;padding:0}
+.slide:hover .del,.del:focus-visible{opacity:1}
+@media (hover:none){.del{opacity:.85}}
+.empty{color:var(--muted);text-align:center;padding:80px 20px;font-size:14px;border:1.5px dashed var(--line);border-radius:10px}
+</style>
+
+</head>
+<body>
+<header class="topbar">
+  <h1>PPT 활동지 슬라이드 메이커</h1>
+  <p>수업 PPT를 올리면 학생이 구글 슬라이드에서 직접 답을 입력하는 활동지 슬라이드를 만들어 줍니다.</p>
+</header>
+
+<main class="app">
+  <aside class="rail">
+    <section class="step" aria-labelledby="s1">
+      <h2 id="s1"><b>1</b>PPT 올리기</h2>
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+        <strong>.pptx 파일을 끌어다 놓거나 클릭</strong>
+        <span>슬라이드 텍스트, 굵은 글씨(핵심어), 발표자 노트를 읽습니다</span>
+      </label>
+      <div class="status" id="status">예시 PPT ‘데이터와 정보’가 열려 있습니다.</div>
+      <button class="linkbtn" id="togglePaste" type="button">PPT 대신 텍스트 붙여넣기</button>
+      <div class="paste" id="pasteBox" hidden>
+        <textarea id="pasteText" placeholder="# 슬라이드 제목&#10;- 내용 문장 (핵심어는 **굵게**)&#10;&#10;# 다음 슬라이드 제목&#10;- ..."></textarea>
+        <button class="btn ghost" id="usePaste" type="button">이 텍스트로 슬라이드 만들기</button>
+      </div>
+    </section>
+
+    <section class="step" aria-labelledby="s2">
+      <h2 id="s2"><b>2</b>사용할 슬라이드</h2>
+      <ul class="slides" id="slides"></ul>
+    </section>
+
+    <section class="step" aria-labelledby="s3">
+      <h2 id="s3"><b>3</b>활동지 설정</h2>
+      <div class="grid2">
+        <label class="field"><span>학교명</span><input type="text" id="school"></label>
+        <label class="field"><span>과목</span><input type="text" id="subject" value="정보"></label>
+        <label class="field"><span>대상</span><input type="text" id="grade" value="중학교 1학년"></label>
+        <label class="field"><span>난이도</span>
+          <select id="level"><option>기초</option><option selected>보통</option><option>심화</option></select></label>
+      </div>
+      <div class="types" id="types">
+        <div class="row"><label><input type="checkbox" data-t="fill" checked>핵심 개념 빈칸 채우기</label><input type="number" min="1" max="20" value="8" data-n="fill" aria-label="빈칸 문항 수"></div>
+        <div class="row"><label><input type="checkbox" data-t="ox" checked>OX 퀴즈</label><input type="number" min="1" max="15" value="5" data-n="ox" aria-label="OX 문항 수"></div>
+        <div class="row"><label><input type="checkbox" data-t="choice" checked>객관식</label><input type="number" min="1" max="10" value="3" data-n="choice" aria-label="객관식 문항 수"></div>
+        <div class="row"><label><input type="checkbox" data-t="short" checked>서술형</label><input type="number" min="1" max="6" value="2" data-n="short" aria-label="서술형 문항 수"></div>
+        <div class="row"><label><input type="checkbox" data-t="think" checked>생각 넓히기 (활동)</label><input type="number" min="1" max="4" value="1" data-n="think" aria-label="활동 문항 수"></div>
+      </div>
+      <label class="field"><span>추가 요청 (선택)</span>
+        <textarea id="extra" rows="2" style="min-height:56px" placeholder="예) 생활 속 예시를 많이 넣어 주세요. 어려운 용어는 풀어서."></textarea></label>
+    </section>
+
+    <section class="actions">
+      <button class="btn primary" id="gen" type="button">활동지 만들기</button>
+      <div class="progress" id="prog" hidden><span class="spin"></span><span id="progText">슬라이드를 읽는 중…</span><button class="linkbtn" id="stop" type="button">중단</button></div>
+      <button class="linkbtn" id="genBasic" type="button" style="align-self:flex-start">AI 없이 기본 활동지 만들기</button>
+    </section>
+  </aside>
+
+  <section class="stage" aria-label="활동지 슬라이드 미리보기">
+    <div class="toolbar">
+      <span class="pill" id="badge">예시 활동지</span>
+      <span class="status" id="count"></span>
+      <label class="check"><input type="checkbox" id="showAns">정답 보기</label>
+      <span class="sp"></span>
+      <button class="btn primary" id="dlStu" type="button">학생용 슬라이드 .pptx</button>
+      <button class="btn ghost" id="dlKey" type="button">교사용 정답 .pptx</button>
+    </div>
+    <div class="note" id="dlNote">제목과 문제 문장은 미리보기에서 바로 고칠 수 있고, 문항 오른쪽 위 ×로 삭제합니다. 회색 칸은 학생이 구글 슬라이드에서 답을 입력하는 칸입니다.</div>
+    <div class="deck" id="paper"></div>
+  </section>
+</main>
+
+<script>
+const TYPE_META = {
+  fill:{name:"핵심 개념 정리", hint:"빈칸에 알맞은 말을 쓰시오."},
+  ox:{name:"OX 퀴즈", hint:"옳으면 O, 틀리면 X에 표시하시오."},
+  choice:{name:"객관식 문제", hint:"알맞은 답을 고르시오."},
+  short:{name:"서술형 문제", hint:"물음에 답하시오."},
+  think:{name:"생각 넓히기", hint:"자유롭게 생각을 써 보자."}
+};
+const ROMAN = ["Ⅰ","Ⅱ","Ⅲ","Ⅳ","Ⅴ","Ⅵ"];
+const CIRC = ["①","②","③","④","⑤","⑥"];
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- sample content (clearly an example) ---------- */
+const SAMPLE_SLIDES = [
+  {title:"데이터와 정보", paras:[{text:"1학년 정보 | 자료와 정보", bold:[]}], notes:"", include:true},
+  {title:"데이터(자료)란?", paras:[{text:"데이터는 관찰이나 측정을 통해 얻은 가공되지 않은 사실이나 값이다.", bold:["데이터"]},{text:"예: 기온 23℃, 시험 점수 85점, 설문 응답", bold:[]}], notes:"", include:true},
+  {title:"정보란?", paras:[{text:"정보는 데이터를 목적에 맞게 처리하여 의미 있게 만든 것이다.", bold:["정보"]},{text:"정보는 의사 결정에 도움을 준다.", bold:["의사 결정"]},{text:"예: 이번 주 평균 기온이 지난주보다 3℃ 높다.", bold:[]}], notes:"", include:true},
+  {title:"데이터의 형태", paras:[{text:"수치 데이터: 숫자로 표현한 데이터 (키, 몸무게)", bold:["수치 데이터"]},{text:"문자 데이터: 글자로 표현한 데이터 (이름, 주소)", bold:["문자 데이터"]},{text:"멀티미디어 데이터: 그림, 소리, 동영상", bold:["멀티미디어 데이터"]}], notes:"", include:true},
+  {title:"아날로그와 디지털", paras:[{text:"아날로그는 연속적인 값으로 표현한다.", bold:["아날로그"]},{text:"디지털은 0과 1처럼 끊어진 값으로 표현한다.", bold:["디지털"]},{text:"컴퓨터는 모든 데이터를 디지털로 바꾸어 처리한다.", bold:[]}], notes:"시계, 온도계 예시로 비교", include:true},
+  {title:"정리", paras:[{text:"데이터 → 처리 → 정보", bold:[]},{text:"정보를 활용하면 문제를 더 잘 해결할 수 있다.", bold:[]}], notes:"", include:true}
+];
+const SAMPLE_MODEL = {
+  title:"데이터와 정보", goal:"데이터와 정보의 차이를 설명하고, 데이터의 형태를 구분할 수 있다.",
+  sections:[
+    {type:"fill", items:[
+      {text:"관찰이나 측정을 통해 얻은 가공되지 않은 사실이나 값을 {{데이터}}(이)라고 한다."},
+      {text:"데이터를 목적에 맞게 {{처리}}하여 의미 있게 만든 것을 {{정보}}(이)라고 한다."},
+      {text:"정보는 사람들의 {{의사 결정}}에 도움을 준다."},
+      {text:"키, 몸무게처럼 숫자로 표현한 데이터를 {{수치 데이터}}(이)라고 한다."},
+      {text:"그림, 소리, 동영상은 {{멀티미디어 데이터}}에 속한다."},
+      {text:"{{아날로그}}는 연속적인 값으로, {{디지털}}은 0과 1처럼 끊어진 값으로 표현한다."}
+    ]},
+    {type:"ox", items:[
+      {q:"‘시험 점수 85점’은 가공되지 않은 데이터이다.", answer:"O", explain:"측정해서 얻은 값 그대로이므로 데이터이다."},
+      {q:"이름과 주소는 수치 데이터이다.", answer:"X", explain:"글자로 표현하므로 문자 데이터이다."},
+      {q:"컴퓨터는 데이터를 디지털로 바꾸어 처리한다.", answer:"O", explain:"컴퓨터는 0과 1로 데이터를 처리한다."},
+      {q:"정보는 의사 결정과 관계가 없다.", answer:"X", explain:"정보는 의사 결정에 도움을 준다."}
+    ]},
+    {type:"choice", items:[
+      {q:"다음 중 ‘정보’에 해당하는 것은?", options:["오늘 기온 23℃","시험 점수 85점","설문 응답지 30장","이번 주 평균 기온이 지난주보다 3℃ 높다","학생의 키 158cm"], answer:3, explain:"여러 데이터를 처리해 의미를 만든 것이 정보이다."},
+      {q:"데이터의 형태가 나머지와 다른 하나는?", options:["노래 파일","학교 소개 동영상","반 단체 사진","친구의 주소","강아지 울음소리 녹음"], answer:3, explain:"주소는 문자 데이터, 나머지는 멀티미디어 데이터이다."}
+    ]},
+    {type:"short", items:[
+      {q:"데이터와 정보의 차이를 예를 들어 설명하시오.", answer:"데이터는 가공되지 않은 사실이나 값(예: 하루하루의 기온)이고, 정보는 이를 처리해 의미를 만든 것(예: 이번 주가 지난주보다 덥다)이다. 차이와 예시를 모두 쓰면 정답.", lines:4}
+    ]},
+    {type:"think", items:[
+      {q:"내가 하루 동안 만나는 데이터 3가지를 찾아 쓰고, 그 데이터로 어떤 정보를 만들 수 있을지 적어 보자.", lines:6}
+    ]}
+  ]
+};
+
+/* ---------- state ---------- */
+let slides = structuredClone(SAMPLE_SLIDES);
+let model = structuredClone(SAMPLE_MODEL);
+let origin = "sample"; // sample | ai | basic
+let docName = "데이터와 정보";
+let ctl = null;
+const sampleP = window.claude?.use ? claude.use("sample").catch(() => null) : Promise.resolve(null);
+const dlP = window.claude?.use ? claude.use("downloads").catch(() => null) : Promise.resolve(null);
+
+try { $("#school").value = localStorage.getItem("ws-school") ?? "천안불당중학교"; } catch { $("#school").value = "천안불당중학교"; }
+$("#school").addEventListener("input", e => { try { localStorage.setItem("ws-school", e.target.value); } catch {} renderSheetMetaOnly(); });
+$("#subject").addEventListener("input", renderSheetMetaOnly);
+
+/* ---------- PPTX parsing ---------- */
+const NS_P = "http://schemas.openxmlformats.org/presentationml/2006/main";
+function xml(str){ return new DOMParser().parseFromString(str, "application/xml"); }
+function relsMap(doc){ const m = {}; for (const r of doc.getElementsByTagName("Relationship")) m[r.getAttribute("Id")] = {target:r.getAttribute("Target"), type:r.getAttribute("Type")}; return m; }
+function resolve(base, target){ if (target.startsWith("/")) return target.slice(1); const parts = base.split("/"); parts.pop(); for (const seg of target.split("/")) { if (seg === "..") parts.pop(); else if (seg !== ".") parts.push(seg); } return parts.join("/"); }
+function phType(sp){ const ph = sp.getElementsByTagName("p:ph")[0]; return ph ? (ph.getAttribute("type") || "body") : null; }
+function parasOf(node){
+  const out = [];
+  for (const p of node.getElementsByTagName("a:p")) {
+    let text = "", bold = [];
+    for (const r of p.childNodes) {
+      if (r.nodeName === "a:r" || r.nodeName === "a:fld") {
+        const t = r.getElementsByTagName("a:t")[0]?.textContent ?? "";
+        const pr = r.getElementsByTagName("a:rPr")[0];
+        if (pr && (pr.getAttribute("b") === "1" || pr.getAttribute("b") === "true") && t.trim().length > 1) bold.push(t.trim());
+        text += t;
+      } else if (r.nodeName === "a:br") text += " ";
+    }
+    text = text.replace(/\s+/g, " ").trim();
+    if (text) out.push({text, bold});
+  }
+  return out;
+}
+async function parsePptx(file){
+  const zip = await JSZip.loadAsync(file);
+  const pres = zip.file("ppt/presentation.xml");
+  if (!pres) throw new Error("PPTX 형식이 아닙니다.");
+  const presDoc = xml(await pres.async("string"));
+  const rels = relsMap(xml(await zip.file("ppt/_rels/presentation.xml.rels").async("string")));
+  let paths = [...presDoc.getElementsByTagName("p:sldId")].map(s => {
+    const id = s.getAttribute("r:id"); return rels[id] ? resolve("ppt/presentation.xml", rels[id].target) : null; }).filter(Boolean);
+  if (!paths.length) paths = Object.keys(zip.files).filter(f => /^ppt\/slides\/slide\d+\.xml$/.test(f)).sort((a,b)=>parseInt(a.match(/\d+/))-parseInt(b.match(/\d+/)));
+  const result = [];
+  for (const path of paths) {
+    const f = zip.file(path); if (!f) continue;
+    const doc = xml(await f.async("string"));
+    let title = "", paras = [];
+    for (const sp of doc.getElementsByTagName("p:sp")) {
+      const type = phType(sp);
+      if (type === "sldNum" || type === "dt" || type === "ftr") continue;
+      const ps = parasOf(sp);
+      if ((type === "title" || type === "ctrTitle") && !title) title = ps.map(p=>p.text).join(" ");
+      else paras.push(...ps);
+    }
+    for (const tbl of doc.getElementsByTagName("a:tbl")) for (const tr of tbl.getElementsByTagName("a:tr")) {
+      const cells = [...tr.getElementsByTagName("a:tc")].map(tc => parasOf(tc).map(p=>p.text).join(" ")).filter(Boolean);
+      if (cells.length) paras.push({text:cells.join(" | "), bold:[]});
+    }
+    let notes = "";
+    const relFile = zip.file(path.replace(/slides\/(slide\d+\.xml)$/, "slides/_rels/$1.rels"));
+    if (relFile) {
+      const r = Object.values(relsMap(xml(await relFile.async("string")))).find(x => /notesSlide$/.test(x.type));
+      const nf = r && zip.file(resolve(path, r.target));
+      if (nf) {
+        const nd = xml(await nf.async("string"));
+        notes = [...nd.getElementsByTagName("p:sp")].filter(sp => phType(sp) === "body").flatMap(parasOf).map(p=>p.text).join(" ").slice(0, 600);
+      }
+    }
+    if (!title && !paras.length && !notes) continue;
+    if (!title) title = paras.shift()?.text?.slice(0, 40) || "(제목 없음)";
+    result.push({title, paras, notes, include:true});
+  }
+  return result;
+}
+function parsePasted(txt){
+  const out = []; let cur = null;
+  for (const raw of txt.split(/\r?\n/)) {
+    const line = raw.trim(); if (!line) continue;
+    if (line.startsWith("#")) { cur = {title:line.replace(/^#+\s*/, ""), paras:[], notes:"", include:true}; out.push(cur); continue; }
+    if (!cur) { cur = {title:line, paras:[], notes:"", include:true}; out.push(cur); continue; }
+    const bold = [...line.matchAll(/\*\*(.+?)\*\*/g)].map(m => m[1]);
+    cur.paras.push({text:line.replace(/^[-*•]\s*/, "").replace(/\*\*/g, ""), bold});
+  }
+  return out;
+}
+
+/* ---------- slide list ---------- */
+function renderSlides(){
+  $("#slides").innerHTML = slides.map((s,i) => `<li><label><input type="checkbox" data-i="${i}" ${s.include?"checked":""}><span class="n">${i+1}</span><span style="min-width:0;flex:1"><span class="t">${esc(s.title)}</span><span class="b">${esc(s.paras.map(p=>p.text).join(" · ") || s.notes || "내용 없음")}</span></span></label></li>`).join("");
+}
+$("#slides").addEventListener("change", e => { const i = e.target.dataset.i; if (i != null) slides[i].include = e.target.checked; });
+
+async function loadFile(file){
+  if (!file) return;
+  if (!/\.pptx$/i.test(file.name)) { setStatus("‘.pptx’ 파일만 읽을 수 있습니다. .ppt 파일은 파워포인트에서 ‘다른 이름으로 저장 → .pptx’ 후 올려 주세요.", true); return; }
+  setStatus("슬라이드를 읽는 중…");
+  try {
+    const s = await parsePptx(file);
+    if (!s.length) throw new Error("슬라이드에서 글자를 찾지 못했습니다. 그림으로만 된 PPT는 읽을 수 없습니다.");
+    slides = s; docName = file.name.replace(/\.pptx$/i, "");
+    renderSlides(); setStatus(`‘${file.name}’에서 슬라이드 ${s.length}장을 읽었습니다.`);
+    model = null; origin = null; renderSheet();
+  } catch (err) { setStatus("파일을 읽지 못했습니다. " + (err.message || ""), true); }
+}
+function setStatus(t, err){ const el = $("#status"); el.textContent = t; el.classList.toggle("err", !!err); }
+$("#file").addEventListener("change", e => loadFile(e.target.files[0]));
+const drop = $("#drop");
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => loadFile(e.dataTransfer.files[0]));
+$("#togglePaste").onclick = () => { $("#pasteBox").hidden = !$("#pasteBox").hidden; };
+$("#usePaste").onclick = () => {
+  const s = parsePasted($("#pasteText").value);
+  if (!s.length) { setStatus("붙여넣은 텍스트가 없습니다.", true); return; }
+  slides = s; docName = s[0].title; renderSlides(); setStatus(`텍스트에서 슬라이드 ${s.length}장을 만들었습니다.`); model = null; origin = null; renderSheet();
+};
+
+/* ---------- options ---------- */
+function opts(){
+  const counts = {};
+  document.querySelectorAll("#types input[data-t]").forEach(c => { if (c.checked) counts[c.dataset.t] = Math.max(1, +document.querySelector(`[data-n="${c.dataset.t}"]`).value || 1); });
+  return { counts, subject:$("#subject").value.trim() || "정보", grade:$("#grade").value.trim() || "중학생", level:$("#level").value, extra:$("#extra").value.trim(), school:$("#school").value.trim() };
+}
+function chosenSlides(){ return slides.filter(s => s.include); }
+
+/* ---------- AI generation ---------- */
+function buildPrompt(o, ss){
+  const order = ["fill","ox","choice","short","think"].filter(t => o.counts[t]);
+  const comp = order.map(t => `${TYPE_META[t].name}(${t}) ${o.counts[t]}문항`).join(", ");
+  const deck = ss.map((s,i) => `슬라이드 ${i+1}: ${s.title}\n${s.paras.map(p=>"- "+p.text).join("\n")}${s.paras.some(p=>p.bold.length)?`\n(강조된 말: ${[...new Set(s.paras.flatMap(p=>p.bold))].join(", ")})`:""}${s.notes?`\n(발표자 노트: ${s.notes})`:""}`).join("\n\n");
+  return `당신은 한국 중학교 ${o.subject} 교사입니다. 아래 수업 PPT 슬라이드 내용만을 근거로 ${o.grade} 학생이 수업 중에 구글 슬라이드에서 직접 답을 입력하는 활동지를 만드세요.
+
+[조건]
+- 난이도: ${o.level}
+- 문항 구성(이 순서, 이 개수): ${comp}
+- 슬라이드에 없는 사실을 지어내지 마세요. 생각 넓히기(think)만 생활 속 적용을 묻는 열린 질문으로 만듭니다.
+- 활동지 문체를 쓰세요("~을 쓰시오", "~해 보자"). 슬라이드에 들어가므로 문장은 짧게: fill 문장 45자 이내, OX 문장 50자 이내, 객관식 보기 25자 이내.
+- fill: text 안의 정답 낱말을 {{정답}} 형식으로 감쌉니다. 한 문장에 빈칸 1~2개, 핵심 용어만 빈칸으로.
+- ox: answer는 "O" 또는 "X". O와 X를 섞고, explain에 한 줄 해설.
+- choice: options는 보기 5개, answer는 정답 보기의 0부터 시작하는 번호. 정답 위치를 골고루 섞고 explain에 한 줄 해설.
+- short: answer는 모범 답안과 채점 기준(1~2문장). lines는 답 쓸 줄 수(3~5).
+- think: lines는 5~7.
+- title은 수업 주제, goal은 "~할 수 있다"로 끝나는 학습 목표 한 문장.${o.extra?`\n- 교사 추가 요청: ${o.extra}`:""}
+
+[출력] 아래 형식의 JSON 하나만 출력하세요. 설명이나 코드 블록 표시는 쓰지 마세요.
+{"title":"","goal":"","sections":[{"type":"fill","items":[{"text":"... {{정답}} ..."}]},{"type":"ox","items":[{"q":"","answer":"O","explain":""}]},{"type":"choice","items":[{"q":"","options":["","","","",""],"answer":0,"explain":""}]},{"type":"short","items":[{"q":"","answer":"","lines":4}]},{"type":"think","items":[{"q":"","lines":6}]}]}
+(포함하지 않는 유형의 section은 빼세요.)
+
+[슬라이드]
+${deck}`;
+}
+function normalize(m, o){
+  if (!m || typeof m !== "object") throw {code:"bad_shape"};
+  const secs = (Array.isArray(m.sections) ? m.sections : []).filter(s => TYPE_META[s?.type] && Array.isArray(s.items)).map(s => {
+    const items = s.items.map(it => {
+      if (s.type === "fill") return /\{\{.+?\}\}/.test(it?.text||"") ? {text:String(it.text)} : null;
+      if (s.type === "ox") return it?.q ? {q:String(it.q), answer:/x/i.test(it.answer)?"X":"O", explain:String(it.explain||"")} : null;
+      if (s.type === "choice") { const op = Array.isArray(it?.options) ? it.options.map(String).slice(0,5) : []; let a = parseInt(it?.answer); if (!(a>=0 && a<op.length)) a = 0; return it?.q && op.length>=2 ? {q:String(it.q), options:op, answer:a, explain:String(it.explain||"")} : null; }
+      if (s.type === "short") return it?.q ? {q:String(it.q), answer:String(it.answer||""), lines:Math.min(8,Math.max(2,parseInt(it.lines)||4))} : null;
+      return it?.q ? {q:String(it.q), lines:Math.min(10,Math.max(3,parseInt(it.lines)||6))} : null;
+    }).filter(Boolean);
+    return {type:s.type, items};
+  }).filter(s => s.items.length);
+  if (!secs.length) throw {code:"bad_shape"};
+  return {title:String(m.title || docName), goal:String(m.goal || ""), sections:secs};
+}
+
+const ERR = {
+  not_granted:"Claude 사용을 허용하지 않아 AI 활동지를 만들 수 없습니다. ‘AI 없이 기본 활동지 만들기’를 이용해 보세요.",
+  rate_limited:"요청이 몰려 있습니다. 잠시 후 다시 눌러 주세요.",
+  cancelled:"만들기를 중단했습니다.",
+  bad_shape:"결과 형식이 맞지 않았습니다. 한 번 더 눌러 주세요."
+};
+$("#gen").onclick = async () => {
+  const ss = chosenSlides();
+  if (!ss.length) { setStatus("사용할 슬라이드를 하나 이상 선택해 주세요.", true); return; }
+  const o = opts();
+  if (!Object.keys(o.counts).length) { setStatus("문항 유형을 하나 이상 선택해 주세요.", true); return; }
+  busy(true, "Claude가 슬라이드를 분석하는 중…");
+  const sample = await sampleP;
+  if (!sample) { busy(false); makeBasic("이 화면에서는 AI를 쓸 수 없어 슬라이드 문장으로 기본 활동지를 만들었습니다."); return; }
+  ctl = new AbortController();
+  const t0 = Date.now(); const timer = setInterval(() => { $("#progText").textContent = `활동지를 만드는 중… ${Math.round((Date.now()-t0)/1000)}초 (보통 30초~1분)`; }, 1000);
+  try {
+    const raw = await sample.json(buildPrompt(o, ss), {modelTier:"default", signal:ctl.signal});
+    model = normalize(raw, o); origin = "ai"; $("#showAns").checked = false; renderSheet();
+    setStatus(`슬라이드 ${ss.length}장으로 활동지를 만들었습니다.`);
+  } catch (e) {
+    setStatus(ERR[e?.code] || `활동지를 만들지 못했습니다 (${e?.code || "오류"}). 다시 시도하거나 기본 활동지를 만들어 보세요.`, e?.code !== "cancelled");
+  } finally { clearInterval(timer); busy(false); }
+};
+$("#stop").onclick = () => ctl?.abort();
+$("#genBasic").onclick = () => makeBasic();
+function busy(on, msg){ $("#gen").disabled = on; $("#genBasic").disabled = on; $("#prog").hidden = !on; if (msg) $("#progText").textContent = msg; }
+
+/* ---------- rule-based fallback ---------- */
+function makeBasic(msg){
+  const ss = chosenSlides(); const o = opts();
+  if (!ss.length) { setStatus("사용할 슬라이드를 하나 이상 선택해 주세요.", true); return; }
+  // candidate sentences with a keyword
+  const cands = [];
+  ss.forEach((s, si) => s.paras.forEach(p => {
+    let kw = p.bold.find(b => p.text.includes(b));
+    if (!kw && s.title.length >= 2 && s.title.length <= 12) { const tt = s.title.replace(/[?!.()（）]|란$|이란$/g, "").trim(); if (tt.length>=2 && p.text.includes(tt) && p.text !== tt) kw = tt; }
+    if (!kw) { const words = p.text.split(/[\s,.:;()·]+/).map(w => w.replace(/(은|는|이|가|을|를|의|에|로|으로|와|과|도|에서|이다|한다)$/,"")).filter(w => /[가-힣A-Za-z]{2,}/.test(w) && w.length >= 3); kw = words.sort((a,b)=>b.length-a.length)[0]; }
+    if (kw && p.text.length >= 8) cands.push({si, text:p.text, kw});
+  }));
+  const kws = [...new Set(cands.map(c => c.kw))];
+  const pickOther = (kw, n) => kws.filter(k => k !== kw).sort(() => Math.random()-.5).slice(0, n);
+  const secs = [];
+  const c = o.counts;
+  if (c.fill) secs.push({type:"fill", items:cands.slice(0, c.fill).map(x => ({text:x.text.replace(x.kw, `{{${x.kw}}}`)}))});
+  if (c.ox) { const items = cands.slice().sort(()=>Math.random()-.5).slice(0, c.ox).map((x,i) => {
+      const other = pickOther(x.kw, 1)[0];
+      if (i % 2 === 1 && other) return {q:x.text.replace(x.kw, other), answer:"X", explain:`‘${other}’가 아니라 ‘${x.kw}’입니다.`};
+      return {q:x.text, answer:"O", explain:"슬라이드 내용 그대로입니다."}; });
+    secs.push({type:"ox", items}); }
+  if (c.choice && kws.length >= 3) { const items = cands.slice().reverse().slice(0, c.choice).map(x => {
+      const opts5 = [x.kw, ...pickOther(x.kw, 4)].sort(() => Math.random()-.5);
+      return {q:`다음 문장의 빈칸에 들어갈 알맞은 말은?\n“${x.text.replace(x.kw, "(        )")}”`, options:opts5, answer:opts5.indexOf(x.kw), explain:`정답은 ‘${x.kw}’입니다.`}; });
+    secs.push({type:"choice", items}); }
+  if (c.short) secs.push({type:"short", items:ss.filter(s => s.paras.length).slice(1).concat(ss).slice(0, c.short).map(s => ({q:`‘${s.title}’에서 배운 내용을 자신의 말로 설명하시오.`, answer:s.paras.map(p=>p.text).join(" "), lines:4}))});
+  if (c.think) secs.push({type:"think", items:Array.from({length:c.think}, (_,i) => ({q:["오늘 배운 내용을 생활 속에서 찾아볼 수 있는 예를 쓰고, 그 이유를 설명해 보자.","오늘 수업에서 새롭게 알게 된 점과 더 궁금한 점을 써 보자.","오늘 배운 내용을 친구에게 설명한다면 어떻게 말할지 써 보자.","오늘 배운 내용을 한 장의 그림이나 마인드맵으로 정리해 보자."][i%4], lines:6}))});
+  model = {title:ss[0].title === docName ? docName : (docName || ss[0].title), goal:`${ss.map(s=>s.title).slice(0,3).join(", ")}의 핵심 내용을 설명할 수 있다.`, sections:secs.filter(s => s.items.length)};
+  origin = "basic"; renderSheet();
+  setStatus(msg || "슬라이드 문장과 굵은 글씨로 기본 활동지를 만들었습니다. 문장을 다듬어 사용하세요.");
+}
+
+/* ---------- slide layout (one model → both the preview and the .pptx) ---------- */
+const SW = 13.333, SH = 7.5, FONT = "Noto Sans KR";
+const C = {ink:"1D2433", muted:"6B7380", accent:"1E6B5C", rule:"DDE3E8", box:"F6F9FA", boxLine:"9BB0BC", red:"C0392B", tint:"EEF5F2"};
+const T = (x,y,w,h,text,o={}) => ({k:"t",x,y,w,h,text,size:18,color:C.ink,align:"left",valign:"top",...o});
+const B = (x,y,w,h,text,o={}) => ({k:"b",x,y,w,h,text,size:18,color:C.red,align:"left",valign:"top",...o});
+const R = (x,y,w,h,fill) => ({k:"r",x,y,w,h,fill});
+const chunk = (arr, n) => Array.from({length:Math.ceil(arr.length/n)}, (_,i) => arr.slice(i*n, i*n+n));
+const fit = (s, base) => s.length > 90 ? base-4 : s.length > 55 ? base-2 : base;
+
+function buildDeck(m, show){
+  const o = opts(); const deck = [];
+  const frame = (head, hint) => [R(0,0,SW,0.12,C.accent), T(0.6,0.32,8.2,0.6,head,{size:22,bold:true,color:C.accent,valign:"middle"}), T(7.2,0.38,5.53,0.5,hint,{size:13,color:C.muted,align:"right",valign:"middle"}), R(0.6,1.0,12.13,0.02,C.rule)];
+  // cover
+  deck.push([R(0,0,0.28,SH,C.accent), R(0.28,0,SW-0.28,SH,C.tint),
+    T(0.95,1.15,11,0.5,`${o.subject} 활동지`,{size:16,bold:true,color:C.accent}),
+    T(0.95,1.7,11.6,1.3,m.title,{size:fit(m.title,40),bold:true,edit:"title",valign:"middle"}),
+    ...(m.goal ? [T(0.95,3.3,1.7,0.5,"학습 목표",{size:16,bold:true,color:C.accent}), T(2.65,3.3,9.9,1.0,m.goal,{size:18,edit:"goal"})] : []),
+    T(0.95,5.2,1.0,0.65,"학번",{size:16,bold:true,valign:"middle"}), B(1.95,5.2,2.8,0.65,"",{valign:"middle"}),
+    T(5.2,5.2,1.0,0.65,"이름",{size:16,bold:true,valign:"middle"}), B(6.2,5.2,3.8,0.65,"",{valign:"middle"}),
+    T(0.95,6.75,11.6,0.4,o.school,{size:12,color:C.muted})]);
+  m.sections.forEach((s, si) => {
+    const meta = TYPE_META[s.type], head = `${ROMAN[si]||si+1}  ${meta.name}`;
+    const items = s.items.map((it, ii) => ({...it, num:ii+1, path:`${si}.${ii}`}));
+    if (s.type === "fill") {
+      const per = items.some(it => it.text.length > 48) ? 3 : 4;
+      chunk(items, per).forEach(g => {
+        const els = frame(head, meta.hint + " (답 칸에 입력)"); let k = 0;
+        const rowH = Math.min(1.65, 5.6 / g.length);
+        g.forEach((it, j) => {
+          const y = 1.25 + j*rowH; const ans = [];
+          const sent = it.text.replace(/\{\{(.+?)\}\}/g, (_, a) => { ans.push(a); return `(  ${CIRC[k++] || "□"}  )`; });
+          els.push(T(0.6,y,12.1,rowH-0.72,sent,{size:fit(sent,18),num:it.num,del:it.path}));
+          let x = 0.95; const k0 = k - ans.length;
+          ans.forEach((a, n) => { els.push(T(x,y+rowH-0.68,0.45,0.52,CIRC[k0+n]||"□",{size:16,bold:true,color:C.accent,valign:"middle"})); els.push(B(x+0.45,y+rowH-0.68,2.9,0.52,show?a:"",{size:15,valign:"middle"})); x += 3.6; });
+        });
+        deck.push(els);
+      });
+    } else if (s.type === "ox") {
+      chunk(items, 5).forEach(g => {
+        const els = frame(head, meta.hint);
+        els.push(T(11.3,1.1,1.3,0.35,"O / X",{size:12,bold:true,color:C.muted,align:"center"}));
+        g.forEach((it, j) => { const y = 1.5 + j*1.05;
+          els.push(T(0.6,y,10.4,0.85,it.q,{size:fit(it.q,18),valign:"middle",num:it.num,edit:it.path+".q",del:it.path}));
+          els.push(B(11.35,y+0.08,1.2,0.7,show?it.answer:"",{size:24,bold:true,align:"center",valign:"middle"})); });
+        deck.push(els);
+      });
+    } else if (s.type === "choice") {
+      items.forEach(it => {
+        const els = frame(head, meta.hint);
+        els.push(T(0.6,1.25,12.1,1.15,it.q,{size:fit(it.q,20),num:it.num,edit:it.path+".q",del:it.path}));
+        it.options.forEach((op, k) => els.push(T(1.0,2.55+k*0.74,8.9,0.64,`${CIRC[k]}  ${op}`,{size:fit(op,18),valign:"middle",color:show&&k===it.answer?C.red:C.ink,bold:show&&k===it.answer})));
+        els.push(T(10.35,2.55,2.35,0.4,"정답 번호",{size:13,bold:true,color:C.muted,align:"center"}));
+        els.push(B(10.35,3.0,2.35,1.15,show?CIRC[it.answer]:"",{size:36,align:"center",valign:"middle"}));
+        deck.push(els);
+      });
+    } else {
+      items.forEach(it => {
+        const els = frame(head, meta.hint);
+        els.push(T(0.6,1.25,12.1,1.15,it.q,{size:fit(it.q,20),num:it.num,edit:it.path+".q",del:it.path}));
+        els.push(B(0.6,2.55,12.13,4.2,show&&s.type==="short"?it.answer:"",{size:16}));
+        deck.push(els);
+      });
+    }
+  });
+  // footer with page numbers (skip cover)
+  deck.forEach((els, i) => { if (i) els.push(T(0.6,6.98,9,0.35,`${o.subject} · ${m.title}`,{size:10,color:C.muted}), T(10.73,6.98,2,0.35,`${i+1} / ${deck.length}`,{size:10,color:C.muted,align:"right"})); });
+  return deck;
+}
+
+/* ---------- preview ---------- */
+const pct = (v, of) => (v/of*100).toFixed(3) + "%";
+function elHTML(e){
+  const box = `left:${pct(e.x,SW)};top:${pct(e.y,SH)};width:${pct(e.w,SW)};height:${pct(e.h,SH)}`;
+  if (e.k === "r") return `<div class="el" style="${box};background:#${e.fill}"></div>`;
+  const just = {top:"flex-start", middle:"center", bottom:"flex-end"}[e.valign];
+  const style = `${box};--s:${e.size};color:#${e.color};text-align:${e.align};justify-content:${just};font-weight:${e.bold?700:400}`;
+  const num = e.num ? `<span class="num">${e.num}.</span> ` : "";
+  const body = e.edit ? `<span contenteditable="true" spellcheck="false" data-edit="${e.edit}">${esc(e.text)}</span>` : esc(e.text);
+  const del = e.del ? `<button class="del" type="button" data-del="${e.del}" aria-label="${e.num}번 문항 삭제">×</button>` : "";
+  return `<div class="el ${e.k==="b"?"box":"tx"}" style="${style}"><div>${num}${body}</div>${del}</div>`;
+}
+function renderSheet(){
+  const paper = $("#paper"), badge = $("#badge");
+  if (!model) {
+    paper.innerHTML = `<div class="empty">슬라이드 ${slides.length}장을 읽었습니다.<br>왼쪽에서 설정을 고르고 <b>활동지 만들기</b>를 누르세요.</div>`;
+    badge.textContent = "활동지 대기 중"; badge.className = "pill"; $("#count").textContent = ""; return;
+  }
+  const deck = buildDeck(model, $("#showAns").checked);
+  paper.innerHTML = deck.map((els, i) => `<figure class="sl"><figcaption>${i+1}</figcaption><div class="slide">${els.map(elHTML).join("")}</div></figure>`).join("");
+  badge.textContent = {sample:"예시 활동지", ai:"Claude가 만든 활동지", basic:"기본 활동지 (AI 미사용)"}[origin];
+  badge.className = "pill" + (origin === "basic" ? " warn" : "");
+  $("#count").textContent = `슬라이드 ${deck.length}장`;
+}
+function renderSheetMetaOnly(){ if (model) renderSheet(); }
+$("#showAns").onchange = renderSheet;
+$("#paper").addEventListener("input", e => {
+  const path = e.target.dataset?.edit; if (!path || !model) return;
+  const v = e.target.innerText.trim();
+  if (path === "title" || path === "goal") { model[path] = v; return; }
+  const [si, ii, key] = path.split("."); model.sections[si].items[ii][key] = v;
+});
+$("#paper").addEventListener("click", e => {
+  const d = e.target.closest("[data-del]"); if (!d) return;
+  const [si, ii] = d.dataset.del.split(".").map(Number);
+  model.sections[si].items.splice(ii, 1);
+  if (!model.sections[si].items.length) model.sections.splice(si, 1);
+  renderSheet();
+});
+
+/* ---------- .pptx export ---------- */
+function fileBase(){ return (model?.title || docName || "활동지").replace(/[\\/:*?"<>|]/g, "").slice(0, 60) + " 활동지"; }
+async function buildPptx(show){
+  const pptx = new PptxGenJS(); pptx.layout = "LAYOUT_WIDE"; pptx.title = fileBase();
+  for (const els of buildDeck(model, show)) {
+    const s = pptx.addSlide(); s.background = {color:"FFFFFF"};
+    for (const e of els) {
+      if (e.k === "r") { s.addShape(pptx.ShapeType.rect, {x:e.x, y:e.y, w:e.w, h:e.h, fill:{color:e.fill}, line:{color:e.fill, width:0}}); continue; }
+      const common = {x:e.x, y:e.y, w:e.w, h:e.h, fontFace:FONT, fontSize:e.size, color:e.color, bold:!!e.bold, align:e.align, valign:e.valign};
+      if (e.k === "t") s.addText((e.num ? `${e.num}. ` : "") + e.text, {...common, margin:2});
+      else s.addText(e.text || "", {...common, shape:pptx.ShapeType.roundRect, rectRadius:0.06, fill:{color:C.box}, line:{color:C.boxLine, width:1}, margin:6});
+    }
+  }
+  return pptx.write({outputType:"blob"});
+}
+async function save(show){
+  if (!model) { setStatus("먼저 활동지를 만들어 주세요.", true); return; }
+  const dl = await dlP;
+  try {
+    const blob = await buildPptx(show);
+    const name = `${fileBase()}${show?" (정답)":""}.pptx`;
+    if (dl) await dl.save({filename:name, data:blob});
+    else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); }
+    $("#dlNote").innerHTML = show ? "교사용 정답 파일을 저장했습니다. 학생에게는 학생용 파일을 배부하세요." : "저장했습니다. 구글 드라이브에 올린 뒤 <b>Google 프레젠테이션으로 열기</b>를 하고, 클래스룸 과제에 첨부할 때 <b>학생별로 사본 제공</b>을 고르세요.";
+  } catch (e) {
+    if (e?.code === "declined") return;
+    $("#dlNote").textContent = e?.code === "rate_limited" ? "저장 창이 이미 열려 있습니다. 잠시 후 다시 눌러 주세요." : `저장하지 못했습니다 (${e?.code || e?.message || "오류"}).`;
+  }
+}
+$("#dlStu").onclick = () => save(false);
+$("#dlKey").onclick = () => save(true);
+
+renderSlides(); renderSheet();
+if (!window.claude) {
+  $("#genBasic").hidden = true;
+  $("#gen").onclick = () => makeBasic("슬라이드 문장과 굵은 글씨(핵심어)로 활동지를 만들었습니다. 미리보기에서 문장을 다듬어 사용하세요.");
+}
+</script>
+
+</body>
+</html>
